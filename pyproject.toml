@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "tabiya"
+name = "vida"
 version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
@@ -10,7 +10,7 @@ python = "^3.8"
 
 chess             = "^1.9"
 cupy-cuda117      = "^10.6"
-octoml-profile    = "^0.1"
+octoml-profile    = "==0.1.5"
 pytorch-lightning = "^2.0"
 torch             = "^2.0"
 torchaudio        = "^2.0"

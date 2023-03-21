@@ -68,7 +68,13 @@ def main():
     if args.profile:
         torch._dynamo.config.suppress_errors = True
 
-        session = RemoteInferenceSession()
+        session = RemoteInferenceSession([
+            "g4dn.xlarge/onnxrt-cuda",
+            "g4dn.xlarge/onnxrt-tensorrt",
+            "g4dn.xlarge/torch-eager-cuda",
+            "g4dn.xlarge/torch-inductor-cuda"
+        ])
+
         with remote_profile(session):
             for i in range(10):
                 eval_positions(model, fens, args.profile)
