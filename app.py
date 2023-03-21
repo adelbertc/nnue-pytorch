@@ -32,12 +32,37 @@ def read_model(nnue_path):
         reader = serialize.NNUEReader(f, FEATURE_SET)
         return reader.model
 
+def get_algebraic(starting_fen, moves):
+    """
+    Convert UCI moves to standard algebraic notation based
+    on the provided FEN.
+    """
+    board = chess.Board(starting_fen)
+    results = []
+    for move in moves:
+        an = board.san(move)
+        if len(results) == 0:
+            an = "...{}".format(an)
+
+        results.append(an)
+        board.push(move)
+    return results
+
 def eval_positions_with_search(model, fens, depth):
+    """
+    Evaluate a batch of positions with the provided search depth.
+    """
+    results = []
     for fen in fens:
         score, pv = eval_position_with_search(model, fen, depth)
-        print("eval = {} for position = \"{}\"".format(score, fen))
+        pv = get_algebraic(fen, pv)
+        results.append((score, pv))
+    return results
 
 def eval_position_with_search(model, fen, depth):
+    """
+    Evaluate a single position with the provided search depth.
+    """
     board = chess.Board(fen)
     engine = StockfishEngine(board, model)
     score, pv = engine.search(float("-inf"), float("inf"), depth)
@@ -45,7 +70,9 @@ def eval_position_with_search(model, fen, depth):
 
 def eval_positions(model, fens):
     """
-    Evaluate the list of positions with the model.
+    Evaluate the list of positions with the model. There is no
+    search tree depth involved in this evaluation, this function
+    can drive a more sophisticated search-based evaluation function.
 
     Parameters
     ----------
@@ -80,6 +107,7 @@ def filter_fens(fens):
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--net", type=str, help="path to a .nnue net")
+    parser.add_argument("--fen", type=str, help="provide a single fen to evaluate")
     parser.add_argument("--fens", type=str, help="path to file of fens")
     parser.add_argument("--depth", type=int, default=3, help="depth of search")
     parser.add_argument("--profile", action="store_true", help="run in PyTorch profiling mode")
@@ -91,8 +119,9 @@ def main():
 
     if args.profile:
         model = accelerate(model)
-    
-    fens = filter_fens(open(args.fens).read().splitlines())
+
+    fens = [args.fen] if args.fen else open(args.fens).read().splitlines()
+    fens = filter_fens(fens)
 
     board = chess.Board()
     engine = StockfishEngine(board, model)
@@ -108,9 +137,15 @@ def main():
         ])
 
         with remote_profile(session):
-            eval_positions_with_search(model, fens, args.depth)
+            evaluations = eval_positions_with_search(model, fens, args.depth)
     else:
-        eval_positions_with_search(model, fens, args.depth)
+        evaluations = eval_positions_with_search(model, fens, args.depth)
+
+    for i in range(len(fens)):
+        fen = fens[i]
+        score, moves = evaluations[i]
+        moves_string = " ".join(moves)
+        print("[eval: {}] {}, position = \"{}\"".format(score, moves_string, fen))
 
 if __name__ == "__main__":
     main()
