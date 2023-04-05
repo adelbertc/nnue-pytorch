@@ -1,6 +1,7 @@
 import features
 import nnue_dataset
 import serialize
+import ui
 
 import argparse
 import chess
@@ -107,6 +108,7 @@ def filter_fens(fens):
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--net", type=str, help="path to a .nnue net")
+    parser.add_argument("--ui", action="store_true", help="run the UI to play against the computer")
     parser.add_argument("--fen", type=str, help="provide a single fen to evaluate")
     parser.add_argument("--fens", type=str, help="path to file of fens")
     parser.add_argument("--depth", type=int, default=3, help="depth of search")
@@ -120,32 +122,36 @@ def main():
     if args.profile:
         model = accelerate(model)
 
-    fens = [args.fen] if args.fen else open(args.fens).read().splitlines()
-    fens = filter_fens(fens)
-
-    board = chess.Board()
-    engine = StockfishEngine(board, model)
-
-    if args.profile:
-        torch._dynamo.config.suppress_errors = True
-
-        session = RemoteInferenceSession([
-            "g4dn.xlarge/onnxrt-cuda",
-            "g4dn.xlarge/onnxrt-tensorrt",
-            "g4dn.xlarge/torch-eager-cuda",
-            "g4dn.xlarge/torch-inductor-cuda"
-        ])
-
-        with remote_profile(session):
-            evaluations = eval_positions_with_search(model, fens, args.depth)
+    if args.ui:
+        next_move = lambda fen: eval_position_with_search(model, fen, args.depth)[1][0]
+        ui.play_game(next_move)
     else:
-        evaluations = eval_positions_with_search(model, fens, args.depth)
+        fens = [args.fen] if args.fen else open(args.fens).read().splitlines()
+        fens = filter_fens(fens)
 
-    for i in range(len(fens)):
-        fen = fens[i]
-        score, moves = evaluations[i]
-        moves_string = " ".join(moves)
-        print("[eval: {}] {}, position = \"{}\"".format(score, moves_string, fen))
+        board = chess.Board()
+        engine = StockfishEngine(board, model)
+
+        if args.profile:
+            torch._dynamo.config.suppress_errors = True
+
+            session = RemoteInferenceSession([
+                "g4dn.xlarge/onnxrt-cuda",
+                "g4dn.xlarge/onnxrt-tensorrt",
+                "g4dn.xlarge/torch-eager-cuda",
+                "g4dn.xlarge/torch-inductor-cuda"
+            ])
+
+            with remote_profile(session):
+                evaluations = eval_positions_with_search(model, fens, args.depth)
+        else:
+            evaluations = eval_positions_with_search(model, fens, args.depth)
+
+        for i in range(len(fens)):
+            fen = fens[i]
+            score, moves = evaluations[i]
+            moves_string = " ".join(moves)
+            print("[eval: {}] {}, position = \"{}\"".format(score, moves_string, fen))
 
 if __name__ == "__main__":
     main()

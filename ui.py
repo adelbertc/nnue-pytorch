@@ -4,8 +4,6 @@ Copied and adapted from the chess demo code for PySimpleGUI.
 https://github.com/PySimpleGUI/PySimpleGUI
 """
 
-import app
-
 import argparse
 import chess
 import chess.pgn
@@ -72,10 +70,7 @@ def redraw_board(window, board):
             elem.Update(button_color=('white', color),
                         image_filename=piece_image, )
 
-def play_game(model, depth):
-    menu_def = [['&File', ['&Open PGN File', 'E&xit']],
-                ['&Help', '&About...'], ]
-
+def play_game(next_move):
     # sg.SetOptions(margins=(0,0))
     sg.ChangeLookAndFeel('GreenTan')
     # create initial board setup
@@ -93,37 +88,13 @@ def play_game(model, depth):
     # add the labels across bottom of board
     board_layout.append([sg.T('     ')] + [sg.T('{}'.format(a), pad=((23, 27), 0), font='Any 13') for a in 'abcdefgh'])
 
-    # setup the controls on the right side of screen
-    openings = (
-        'Any', 'Defense', 'Attack', 'Trap', 'Gambit', 'Counter', 'Sicillian', 'English', 'French', 'Queen\'s openings',
-        'King\'s Openings', 'Indian Openings')
-
-    board_controls = [[sg.RButton('New Game', key='New Game'), sg.RButton('Draw')],
-                      [sg.RButton('Resign Game'), sg.RButton('Set FEN')],
-                      [sg.RButton('Player Odds'), sg.RButton('Training')],
-                      [sg.Drop(openings), sg.Text('Opening/Style')],
-                      [sg.CBox('Play As White', key='_white_')],
-                      [sg.Drop([2, 3, 4, 5, 6, 7, 8, 9, 10], size=(3, 1), key='_level_'), sg.Text('Difficulty Level')],
-                      [sg.Text('Move List')],
-                      [sg.Multiline([], do_not_clear=True, autoscroll=True, size=(15, 10), key='_movelist_')],
-                      ]
-
-    # layouts for the tabs
-    controls_layout = [[sg.Text('Performance Parameters', font='_ 20')],
-                       [sg.T('Put stuff like AI engine tuning parms on this tab')]]
-
-    statistics_layout = [[sg.Text('Statistics', font=('_ 20'))],
-                         [sg.T('Game statistics go here?')]]
+    board_controls = [[sg.Text('Move List')], [sg.Multiline([], do_not_clear=True, autoscroll=True, size=(15, 10), key='_movelist_')]]
 
     board_tab = [[sg.Column(board_layout)]]
 
     # the main window layout
-    layout = [[sg.Menu(menu_def, tearoff=False)],
-              [sg.TabGroup([[sg.Tab('Board', board_tab),
-                             sg.Tab('Controls', controls_layout),
-                             sg.Tab('Statistics', statistics_layout)]], title_color='red'),
-               sg.Column(board_controls)],
-              [sg.Text('Click anywhere on board for next move', font='_ 14')]]
+    layout = [[sg.Column(board_tab)],
+              [sg.Column(board_controls)]]
 
     window = sg.Window('Chess',
                        default_button_element_size=(12, 1),
@@ -143,14 +114,7 @@ def play_game(model, depth):
                 button, value = window.Read()
                 if button in (None, 'Exit'):
                     exit()
-                if button == 'New Game':
-                    sg.Popup('You have to restart the program to start a new game... sorry....')
-                    break
-                    psg_board = copy.deepcopy(initial_board)
-                    redraw_board(window, psg_board)
-                    move_state = 0
-                    break
-                level = value['_level_']
+
                 if type(button) is tuple:
                     if move_state == 0:
                         move_from = button
@@ -190,8 +154,7 @@ def play_game(model, depth):
                         break
         else:
             fen = board.fen()
-            _, pv = app.eval_position_with_search(model, fen, depth)
-            best_move = pv[0]
+            best_move = next_move(fen)
 
             move_str = best_move.uci()
             from_col = ord(move_str[0]) - ord('a')
@@ -209,18 +172,3 @@ def play_game(model, depth):
             board.push(best_move)
             move_count += 1
     sg.Popup('Game over!', 'Thank you for playing')
-
-def main():
-    parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--net", type=str, help="path to a .nnue net")
-    parser.add_argument("--depth", type=int, default=1, help="depth of search")
-    args = parser.parse_args()
-
-    model = app.read_model(args.net)
-    model.eval()
-    model.cuda()
-
-    play_game(model, args.depth)
-
-if __name__ == "__main__":
-    main()
