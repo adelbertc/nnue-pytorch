@@ -70,31 +70,51 @@ def redraw_board(window, board):
             elem.Update(button_color=('white', color),
                         image_filename=piece_image, )
 
-def play_game(next_move):
-    # sg.SetOptions(margins=(0,0))
+def convert_to_grid(move):
+    move_str = move.uci()
+    from_col = ord(move_str[0]) - ord('a')
+    from_row = 8 - int(move_str[1])
+    to_col = ord(move_str[2]) - ord('a')
+    to_row = 8 - int(move_str[3])
+    return (from_col, from_row, to_col, to_row)
+
+def label_files():
+    return [sg.T('     ')] + [sg.T('{}'.format(a), pad=((23, 27), 0), font='Any 13') for a in 'abcdefgh']
+
+def label_rank(i):
+    return sg.T(str(8 - i) + '   ', font='Any 13')
+
+def layout_board():
     sg.ChangeLookAndFeel('GreenTan')
-    # create initial board setup
     psg_board = copy.deepcopy(initial_board)
+
     # the main board display layout
-    board_layout = [[sg.T('     ')] + [sg.T('{}'.format(a), pad=((23, 27), 0), font='Any 13') for a in 'abcdefgh']]
-    # loop though board and create buttons with images
+    board_layout = []
+
+    # loop through the board row by row and create buttons with images
     for i in range(8):
-        row = [sg.T(str(8 - i) + '   ', font='Any 13')]
+        row = []
         for j in range(8):
             piece_image = images[psg_board[i][j]]
             row.append(render_square(piece_image, key=(i, j), location=(i, j)))
-        row.append(sg.T(str(8 - i) + '   ', font='Any 13'))
+
+        # add the rank labels to the right side of the current row
+        row.append(label_rank(i))
         board_layout.append(row)
-    # add the labels across bottom of board
-    board_layout.append([sg.T('     ')] + [sg.T('{}'.format(a), pad=((23, 27), 0), font='Any 13') for a in 'abcdefgh'])
 
-    board_controls = [[sg.Text('Move List')], [sg.Multiline([], do_not_clear=True, autoscroll=True, size=(15, 10), key='_movelist_')]]
+    # add the file labels across bottom of board
+    board_layout.append(label_files())
 
-    board_tab = [[sg.Column(board_layout)]]
+    board_controls = [[sg.Text('Move List', size=(16, 1))], [sg.Multiline([], do_not_clear=True, autoscroll=True, size=(52, 8), key='_movelist_')]]
 
     # the main window layout
-    layout = [[sg.Column(board_tab)],
-              [sg.Column(board_controls)]]
+    layout = [[sg.Column(board_layout), sg.Column(board_controls)]]
+
+    return layout
+
+def play_game(next_move):
+    layout = layout_board()
+    psg_board = copy.deepcopy(initial_board)
 
     window = sg.Window('Chess',
                        default_button_element_size=(12, 1),
@@ -104,11 +124,9 @@ def play_game(next_move):
     board = chess.Board()
     move_count = 1
     move_state = move_from = move_to = 0
-    # ---===--- Loop taking in user input --- #
-    while not board.is_game_over():
 
+    while not board.is_game_over():
         if board.turn == chess.WHITE:
-            # human_player(board)
             move_state = 0
             while True:
                 button, value = window.Read()
@@ -135,8 +153,10 @@ def play_game(next_move):
                         picked_move = '{}{}{}{}'.format('abcdefgh'[move_from[1]], 8 - move_from[0],
                                                         'abcdefgh'[move_to[1]], 8 - move_to[0])
 
-                        if picked_move in [str(move) for move in board.legal_moves]:
-                            board.push(chess.Move.from_uci(picked_move))
+                        picked_move = chess.Move.from_uci(picked_move)
+
+                        if board.is_legal(picked_move):
+                            board.push(picked_move)
                         else:
                             print('Illegal move')
                             move_state = 0
@@ -149,18 +169,15 @@ def play_game(next_move):
                         redraw_board(window, psg_board)
                         move_count += 1
 
-                        window.find_element('_movelist_').Update(picked_move + '\n', append=True)
+                        window.find_element('_movelist_').Update(picked_move.uci() + '\n', append=True)
 
                         break
         else:
             fen = board.fen()
             best_move = next_move(fen)
 
+            from_col, from_row, to_col, to_row = convert_to_grid(best_move)
             move_str = best_move.uci()
-            from_col = ord(move_str[0]) - ord('a')
-            from_row = 8 - int(move_str[1])
-            to_col = ord(move_str[2]) - ord('a')
-            to_row = 8 - int(move_str[3])
 
             window.find_element('_movelist_').Update(move_str + '\n', append=True)
 
