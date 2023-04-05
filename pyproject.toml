@@ -12,6 +12,7 @@ chess             = "^1.9"
 python-chess-engine-extensions = { git = "https://github.com/adelbertc/python-chess-engine-extensions.git", branch = "poetry-setup" }
 cupy-cuda117      = "^10.6"
 octoml-profile    = "==0.1.5"
+pysimplegui       = "^4.60"
 pytorch-lightning = "^2.0"
 torch             = "^2.0"
 torchaudio        = "^2.0"
