@@ -28,64 +28,114 @@ ROOKW = 10
 KINGW = 11
 QUEENW = 12
 
-initial_board = [[ROOKB, KNIGHTB, BISHOPB, QUEENB, KINGB, BISHOPB, KNIGHTB, ROOKB],
-                 [PAWNB, ] * 8,
-                 [BLANK, ] * 8,
-                 [BLANK, ] * 8,
-                 [BLANK, ] * 8,
-                 [BLANK, ] * 8,
-                 [PAWNW, ] * 8,
-                 [ROOKW, KNIGHTW, BISHOPW, QUEENW, KINGW, BISHOPW, KNIGHTW, ROOKW]]
+initial_board = [
+    [ROOKB, KNIGHTB, BISHOPB, QUEENB, KINGB, BISHOPB, KNIGHTB, ROOKB],
+    [
+        PAWNB,
+    ]
+    * 8,
+    [
+        BLANK,
+    ]
+    * 8,
+    [
+        BLANK,
+    ]
+    * 8,
+    [
+        BLANK,
+    ]
+    * 8,
+    [
+        BLANK,
+    ]
+    * 8,
+    [
+        PAWNW,
+    ]
+    * 8,
+    [ROOKW, KNIGHTW, BISHOPW, QUEENW, KINGW, BISHOPW, KNIGHTW, ROOKW],
+]
 
-blank = os.path.join(CHESS_PATH, 'blank.png')
-bishopB = os.path.join(CHESS_PATH, 'nbishopb.png')
-bishopW = os.path.join(CHESS_PATH, 'nbishopw.png')
-pawnB = os.path.join(CHESS_PATH, 'npawnb.png')
-pawnW = os.path.join(CHESS_PATH, 'npawnw.png')
-knightB = os.path.join(CHESS_PATH, 'nknightb.png')
-knightW = os.path.join(CHESS_PATH, 'nknightw.png')
-rookB = os.path.join(CHESS_PATH, 'nrookb.png')
-rookW = os.path.join(CHESS_PATH, 'nrookw.png')
-queenB = os.path.join(CHESS_PATH, 'nqueenb.png')
-queenW = os.path.join(CHESS_PATH, 'nqueenw.png')
-kingB = os.path.join(CHESS_PATH, 'nkingb.png')
-kingW = os.path.join(CHESS_PATH, 'nkingw.png')
+blank = os.path.join(CHESS_PATH, "blank.png")
+bishopB = os.path.join(CHESS_PATH, "nbishopb.png")
+bishopW = os.path.join(CHESS_PATH, "nbishopw.png")
+pawnB = os.path.join(CHESS_PATH, "npawnb.png")
+pawnW = os.path.join(CHESS_PATH, "npawnw.png")
+knightB = os.path.join(CHESS_PATH, "nknightb.png")
+knightW = os.path.join(CHESS_PATH, "nknightw.png")
+rookB = os.path.join(CHESS_PATH, "nrookb.png")
+rookW = os.path.join(CHESS_PATH, "nrookw.png")
+queenB = os.path.join(CHESS_PATH, "nqueenb.png")
+queenW = os.path.join(CHESS_PATH, "nqueenw.png")
+kingB = os.path.join(CHESS_PATH, "nkingb.png")
+kingW = os.path.join(CHESS_PATH, "nkingw.png")
 
-images = {BISHOPB: bishopB, BISHOPW: bishopW, PAWNB: pawnB, PAWNW: pawnW, KNIGHTB: knightB, KNIGHTW: knightW,
-          ROOKB: rookB, ROOKW: rookW, KINGB: kingB, KINGW: kingW, QUEENB: queenB, QUEENW: queenW, BLANK: blank}
+images = {
+    BISHOPB: bishopB,
+    BISHOPW: bishopW,
+    PAWNB: pawnB,
+    PAWNW: pawnW,
+    KNIGHTB: knightB,
+    KNIGHTW: knightW,
+    ROOKB: rookB,
+    ROOKW: rookW,
+    KINGB: kingB,
+    KINGW: kingW,
+    QUEENB: queenB,
+    QUEENW: queenW,
+    BLANK: blank,
+}
+
 
 def render_square(image, key, location):
     if (location[0] + location[1]) % 2:
-        color = '#B58863'
+        color = "#B58863"
     else:
-        color = '#F0D9B5'
-    return sg.RButton('', image_filename=image, size=(1, 1), button_color=('white', color), pad=(0, 0), key=key)
+        color = "#F0D9B5"
+    return sg.RButton(
+        "",
+        image_filename=image,
+        size=(1, 1),
+        button_color=("white", color),
+        pad=(0, 0),
+        key=key,
+    )
+
 
 def redraw_board(window, board):
     for i in range(8):
         for j in range(8):
-            color = '#B58863' if (i + j) % 2 else '#F0D9B5'
+            color = "#B58863" if (i + j) % 2 else "#F0D9B5"
             piece_image = images[board[i][j]]
             elem = window.find_element(key=(i, j))
-            elem.Update(button_color=('white', color),
-                        image_filename=piece_image, )
+            elem.Update(
+                button_color=("white", color),
+                image_filename=piece_image,
+            )
+
 
 def convert_to_grid(move):
     move_str = move.uci()
-    from_col = ord(move_str[0]) - ord('a')
+    from_col = ord(move_str[0]) - ord("a")
     from_row = 8 - int(move_str[1])
-    to_col = ord(move_str[2]) - ord('a')
+    to_col = ord(move_str[2]) - ord("a")
     to_row = 8 - int(move_str[3])
     return (from_col, from_row, to_col, to_row)
 
+
 def label_files():
-    return [sg.T('     ')] + [sg.T('{}'.format(a), pad=((23, 27), 0), font='Any 13') for a in 'abcdefgh']
+    return [sg.T("     ")] + [
+        sg.T("{}".format(a), pad=((23, 27), 0), font="Any 13") for a in "abcdefgh"
+    ]
+
 
 def label_rank(i):
-    return sg.T(str(8 - i) + '   ', font='Any 13')
+    return sg.T(str(8 - i) + "   ", font="Any 13")
+
 
 def layout_board():
-    sg.ChangeLookAndFeel('GreenTan')
+    sg.ChangeLookAndFeel("GreenTan")
     psg_board = copy.deepcopy(initial_board)
 
     # the main board display layout
@@ -105,21 +155,31 @@ def layout_board():
     # add the file labels across bottom of board
     board_layout.append(label_files())
 
-    board_controls = [[sg.Text('Move List', size=(16, 1))], [sg.Multiline([], do_not_clear=True, autoscroll=True, size=(52, 8), key='_movelist_')]]
+    board_controls = [
+        [sg.Text("Move List", size=(16, 1))],
+        [
+            sg.Multiline(
+                [], do_not_clear=True, autoscroll=True, size=(52, 8), key="_movelist_"
+            )
+        ],
+    ]
 
     # the main window layout
     layout = [[sg.Column(board_layout), sg.Column(board_controls)]]
 
     return layout
 
+
 def play_game(next_move):
     layout = layout_board()
     psg_board = copy.deepcopy(initial_board)
 
-    window = sg.Window('Chess',
-                       default_button_element_size=(12, 1),
-                       auto_size_buttons=False,
-                       icon='kingb.ico').Layout(layout)
+    window = sg.Window(
+        "Chess",
+        default_button_element_size=(12, 1),
+        auto_size_buttons=False,
+        icon="kingb.ico",
+    ).Layout(layout)
 
     board = chess.Board()
     move_count = 1
@@ -130,7 +190,7 @@ def play_game(next_move):
             move_state = 0
             while True:
                 button, value = window.Read()
-                if button in (None, 'Exit'):
+                if button in (None, "Exit"):
                     exit()
 
                 if type(button) is tuple:
@@ -139,37 +199,49 @@ def play_game(next_move):
                         row, col = move_from
                         piece = psg_board[row][col]  # get the move-from piece
                         button_square = window.find_element(key=(row, col))
-                        button_square.Update(button_color=('white', 'red'))
+                        button_square.Update(button_color=("white", "red"))
                         move_state = 1
                     elif move_state == 1:
                         move_to = button
                         row, col = move_to
                         if move_to == move_from:  # cancelled move
-                            color = '#B58863' if (row + col) % 2 else '#F0D9B5'
-                            button_square.Update(button_color=('white', color))
+                            color = "#B58863" if (row + col) % 2 else "#F0D9B5"
+                            button_square.Update(button_color=("white", color))
                             move_state = 0
                             continue
 
-                        picked_move = '{}{}{}{}'.format('abcdefgh'[move_from[1]], 8 - move_from[0],
-                                                        'abcdefgh'[move_to[1]], 8 - move_to[0])
+                        picked_move = "{}{}{}{}".format(
+                            "abcdefgh"[move_from[1]],
+                            8 - move_from[0],
+                            "abcdefgh"[move_to[1]],
+                            8 - move_to[0],
+                        )
 
                         picked_move = chess.Move.from_uci(picked_move)
 
                         if board.is_legal(picked_move):
                             board.push(picked_move)
                         else:
-                            print('Illegal move')
+                            print("Illegal move")
                             move_state = 0
-                            color = '#B58863' if (move_from[0] + move_from[1]) % 2 else '#F0D9B5'
-                            button_square.Update(button_color=('white', color))
+                            color = (
+                                "#B58863"
+                                if (move_from[0] + move_from[1]) % 2
+                                else "#F0D9B5"
+                            )
+                            button_square.Update(button_color=("white", color))
                             continue
 
-                        psg_board[move_from[0]][move_from[1]] = BLANK  # place blank where piece was
+                        psg_board[move_from[0]][
+                            move_from[1]
+                        ] = BLANK  # place blank where piece was
                         psg_board[row][col] = piece  # place piece in the move-to square
                         redraw_board(window, psg_board)
                         move_count += 1
 
-                        window.find_element('_movelist_').Update(picked_move.uci() + '\n', append=True)
+                        window.find_element("_movelist_").Update(
+                            picked_move.uci() + "\n", append=True
+                        )
 
                         break
         else:
@@ -179,7 +251,7 @@ def play_game(next_move):
             from_col, from_row, to_col, to_row = convert_to_grid(best_move)
             move_str = best_move.uci()
 
-            window.find_element('_movelist_').Update(move_str + '\n', append=True)
+            window.find_element("_movelist_").Update(move_str + "\n", append=True)
 
             piece = psg_board[from_row][from_col]
             psg_board[from_row][from_col] = BLANK
@@ -188,4 +260,4 @@ def play_game(next_move):
 
             board.push(best_move)
             move_count += 1
-    sg.Popup('Game over!', 'Thank you for playing')
+    sg.Popup("Game over!", "Thank you for playing")

@@ -8,9 +8,10 @@ import chess
 from python_chess_engine_extensions.evaluation.mixins import BaseEvaluation
 from python_chess_engine_extensions.search.alphabeta import AlphaBetaMixin
 import torch
-from octoml_profile import (accelerate, remote_profile, RemoteInferenceSession)
+from octoml_profile import accelerate, remote_profile, RemoteInferenceSession
 
 FEATURE_SET = features.get_feature_set_from_name("HalfKAv2_hm")
+
 
 class StockfishMixin(BaseEvaluation):
     def __init__(self, board, model):
@@ -23,15 +24,18 @@ class StockfishMixin(BaseEvaluation):
         e = eval_positions(self.model, [fen])
         return e[0]
 
+
 class StockfishEngine(AlphaBetaMixin, StockfishMixin):
     def __init__(self, board, model):
         AlphaBetaMixin.__init__(self, board)
         StockfishMixin.__init__(self, board, model)
 
+
 def read_model(nnue_path):
     with open(nnue_path, "rb") as f:
         reader = serialize.NNUEReader(f, FEATURE_SET)
         return reader.model
+
 
 def get_algebraic(starting_fen, moves):
     """
@@ -49,6 +53,7 @@ def get_algebraic(starting_fen, moves):
         board.push(move)
     return results
 
+
 def eval_positions_with_search(model, fens, depth):
     """
     Evaluate a batch of positions with the provided search depth.
@@ -60,6 +65,7 @@ def eval_positions_with_search(model, fens, depth):
         results.append((score, pv))
     return results
 
+
 def eval_position_with_search(model, fen, depth):
     """
     Evaluate a single position with the provided search depth.
@@ -68,6 +74,7 @@ def eval_position_with_search(model, fen, depth):
     engine = StockfishEngine(board, model)
     score, pv = engine.search(float("-inf"), float("inf"), depth)
     return score, pv
+
 
 def eval_positions(model, fens):
     """
@@ -83,11 +90,38 @@ def eval_positions(model, fens):
         List of FEN strings to evaluate
     """
     # Make a SparseBatch out of the FENs and extract the features
-    batch = nnue_dataset.make_sparse_batch_from_fens(FEATURE_SET, fens, [0] * len(fens), [1] * len(fens), [0] * len(fens))
-    us, them, white_indices, white_values, black_indices, black_values, outcome, score, psqt_indices, layer_stack_indices = batch.contents.get_tensors("cuda")
+    batch = nnue_dataset.make_sparse_batch_from_fens(
+        FEATURE_SET, fens, [0] * len(fens), [1] * len(fens), [0] * len(fens)
+    )
+    (
+        us,
+        them,
+        white_indices,
+        white_values,
+        black_indices,
+        black_values,
+        outcome,
+        score,
+        psqt_indices,
+        layer_stack_indices,
+    ) = batch.contents.get_tensors("cuda")
 
     # Evaluate the positions and scale them to pawn scores
-    evals = [v.item() for v in model.forward(us, them, white_indices, white_values, black_indices, black_values, psqt_indices, layer_stack_indices) * 600.0 / 208.0]
+    evals = [
+        v.item()
+        for v in model.forward(
+            us,
+            them,
+            white_indices,
+            white_values,
+            black_indices,
+            black_values,
+            psqt_indices,
+            layer_stack_indices,
+        )
+        * 600.0
+        / 208.0
+    ]
 
     # Set the correct evaluation depending on perspective of score
     # (e.g. white has advantage vs. black has advantage)
@@ -98,6 +132,7 @@ def eval_positions(model, fens):
     nnue_dataset.destroy_sparse_batch(batch)
     return evals
 
+
 def filter_fens(fens):
     def not_in_check(fen):
         board = chess.Board(fen=fen)
@@ -105,14 +140,19 @@ def filter_fens(fens):
 
     return list(filter(not_in_check, fens))
 
+
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--net", type=str, help="path to a .nnue net")
-    parser.add_argument("--ui", action="store_true", help="run the UI to play against the computer")
+    parser.add_argument(
+        "--ui", action="store_true", help="run the UI to play against the computer"
+    )
     parser.add_argument("--fen", type=str, help="provide a single fen to evaluate")
     parser.add_argument("--fens", type=str, help="path to file of fens")
     parser.add_argument("--depth", type=int, default=3, help="depth of search")
-    parser.add_argument("--profile", action="store_true", help="run in PyTorch profiling mode")
+    parser.add_argument(
+        "--profile", action="store_true", help="run in PyTorch profiling mode"
+    )
     args = parser.parse_args()
 
     model = read_model(args.net)
@@ -135,12 +175,14 @@ def main():
         if args.profile:
             torch._dynamo.config.suppress_errors = True
 
-            session = RemoteInferenceSession([
-                "g4dn.xlarge/onnxrt-cuda",
-                "g4dn.xlarge/onnxrt-tensorrt",
-                "g4dn.xlarge/torch-eager-cuda",
-                "g4dn.xlarge/torch-inductor-cuda"
-            ])
+            session = RemoteInferenceSession(
+                [
+                    "g4dn.xlarge/onnxrt-cuda",
+                    "g4dn.xlarge/onnxrt-tensorrt",
+                    "g4dn.xlarge/torch-eager-cuda",
+                    "g4dn.xlarge/torch-inductor-cuda",
+                ]
+            )
 
             with remote_profile(session):
                 evaluations = eval_positions_with_search(model, fens, args.depth)
@@ -151,7 +193,8 @@ def main():
             fen = fens[i]
             score, moves = evaluations[i]
             moves_string = " ".join(moves)
-            print("[eval: {}] {}, position = \"{}\"".format(score, moves_string, fen))
+            print('[eval: {}] {}, position = "{}"'.format(score, moves_string, fen))
+
 
 if __name__ == "__main__":
     main()

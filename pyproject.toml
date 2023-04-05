@@ -18,6 +18,9 @@ torch             = "^2.0"
 torchaudio        = "^2.0"
 torchvision       = "^0.15"
 
+[tool.poetry.dev-dependencies]
+black = "^23.3"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
