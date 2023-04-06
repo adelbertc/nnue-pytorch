@@ -46,7 +46,8 @@ def alpha_beta(fen, depth, alpha, beta, evaluate, maximizing_player, ply=0):
     board = chess.Board(fen)
 
     if board.is_checkmate():
-        return -MATE + ply, []
+        mate_score = -MATE + ply if maximizing_player else MATE - ply
+        return mate_score, []
 
     if (
         board.can_claim_draw()
@@ -77,7 +78,7 @@ def alpha_beta(fen, depth, alpha, beta, evaluate, maximizing_player, ply=0):
 
                 if max_eval > alpha:
                     alpha = max_eval
-                    pv = [move] = candidate_pv
+                    pv = [move] + candidate_pv
 
         return alpha, pv
     else:
