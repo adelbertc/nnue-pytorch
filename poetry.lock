@@ -1356,25 +1356,6 @@ files = [
 ]
 
 [[package]]
-name = "python-chess-engine-extensions"
-version = "0.1.0"
-description = ""
-category = "main"
-optional = false
-python-versions = "^3.8"
-files = []
-develop = false
-
-[package.dependencies]
-chess = "^1.9"
-
-[package.source]
-type = "git"
-url = "https://github.com/adelbertc/python-chess-engine-extensions.git"
-reference = "poetry-setup"
-resolved_reference = "814759f629637df81ad4e9d0ff912a34a8ba04c4"
-
-[[package]]
 name = "pytorch-lightning"
 version = "2.0.1"
 description = "PyTorch Lightning is the lightweight PyTorch wrapper for ML researchers. Scale your models. Write less boilerplate."
@@ -1850,4 +1831,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "6fc771cec9941782a7bcedabe25aef6b6de4a1e384c7815032e3b0873b3803d5"
+content-hash = "7d2d7d11b858f26bafff0db25fbcefbddd475b79f2aff66d657e5576213d191c"

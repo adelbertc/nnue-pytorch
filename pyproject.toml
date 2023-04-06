@@ -9,7 +9,6 @@ readme = "README.md"
 python = "^3.8"
 
 chess             = "^1.9"
-python-chess-engine-extensions = { git = "https://github.com/adelbertc/python-chess-engine-extensions.git", branch = "poetry-setup" }
 cupy-cuda117      = "^10.6"
 octoml-profile    = "==0.1.5"
 pysimplegui       = "^4.60"

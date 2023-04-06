@@ -6,31 +6,101 @@ import ui
 import argparse
 import chess
 import chess.pgn
-from python_chess_engine_extensions.evaluation.mixins import BaseEvaluation
-from python_chess_engine_extensions.search.alphabeta import AlphaBetaMixin
 import sys
 import torch
 from octoml_profile import accelerate, remote_profile, RemoteInferenceSession
 
 FEATURE_SET = features.get_feature_set_from_name("HalfKAv2_hm")
+MAX_PLY = 128
+MATE = 99999
+MIN_MATE_SCORE = MATE - MAX_PLY
+
+# chess.PieceType are integers for PNBRQK, 1-7
+# Create a "1-indexed" array with the piece value
+PIECE_VALUES = [None, 100, 300, 300, 500, 900, 0]
 
 
-class StockfishMixin(BaseEvaluation):
-    def __init__(self, board, model):
-        self.board = board
-        self.model = model
-        super().__init__(board)
+# Copied and adapted from python-chess-engine-extensions
+# https://github.com/Mk-Chan/python-chess-engine-extensions/blob/master/search/alphabeta.py
+def sort_moves(board, move):
+    attacking_piece = board.piece_at(move.from_square)
+    attacked_piece = board.piece_at(move.to_square)
 
-    def evaluate(self):
-        fen = self.board.fen()
-        e = eval_positions(self.model, [fen])
-        return e[0]
+    order = 0
+    if attacked_piece:
+        order = PIECE_VALUES[attacked_piece.piece_type] - attacking_piece.piece_type
+    return order
 
 
-class StockfishEngine(AlphaBetaMixin, StockfishMixin):
-    def __init__(self, board, model):
-        AlphaBetaMixin.__init__(self, board)
-        StockfishMixin.__init__(self, board, model)
+def next_fen(starting, move):
+    board = chess.Board(starting)
+    board.push(move)
+    return board.fen()
+
+
+# Adapted from https://www.chessprogramming.org/Alpha-Beta
+def alpha_beta(fen, depth, alpha, beta, evaluate, maximizing_player, ply=0):
+    if depth == 0 or ply >= MAX_PLY:
+        return evaluate(fen), []
+
+    board = chess.Board(fen)
+
+    if board.is_checkmate():
+        return -MATE + ply, []
+
+    if (
+        board.can_claim_draw()
+        or board.is_insufficient_material()
+        or board.is_stalemate()
+    ):
+        return 0, []
+
+    legal_moves = sorted(
+        board.legal_moves, reverse=True, key=lambda move: sort_moves(board, move)
+    )
+
+    if maximizing_player:
+        max_eval = float("-inf")
+        pv = []
+        for move in legal_moves:
+            new_fen = next_fen(fen, move)
+
+            candidate_eval, candidate_pv = alpha_beta(
+                new_fen, depth - 1, alpha, beta, evaluate, False, ply + 1
+            )
+
+            if candidate_eval >= beta:
+                return beta, []
+
+            if candidate_eval > max_eval:
+                max_eval = candidate_eval
+
+                if max_eval > alpha:
+                    alpha = max_eval
+                    pv = [move] = candidate_pv
+
+        return alpha, pv
+    else:
+        min_eval = float("inf")
+        pv = []
+        for move in legal_moves:
+            new_fen = next_fen(fen, move)
+
+            candidate_eval, candidate_pv = alpha_beta(
+                new_fen, depth - 1, alpha, beta, evaluate, True, ply + 1
+            )
+
+            if candidate_eval <= alpha:
+                return alpha, []
+
+            if candidate_eval < min_eval:
+                min_eval = candidate_eval
+
+                if min_eval < beta:
+                    beta = min_eval
+                    pv = [move] + candidate_pv
+
+        return beta, pv
 
 
 def read_model(nnue_path):
@@ -72,10 +142,14 @@ def eval_position_with_search(model, fen, depth):
     """
     Evaluate a single position with the provided search depth.
     """
-    board = chess.Board(fen)
-    engine = StockfishEngine(board, model)
-    score, pv = engine.search(float("-inf"), float("inf"), depth)
-    return score, pv
+    return alpha_beta(
+        fen,
+        depth,
+        float("-inf"),
+        float("inf"),
+        lambda fen: eval_positions(model, [fen])[0],
+        True,
+    )
 
 
 def eval_positions(model, fens):
@@ -198,7 +272,6 @@ def main():
         fens = filter_fens(fens)
 
         board = chess.Board()
-        engine = StockfishEngine(board, model)
 
         if args.profile:
             torch._dynamo.config.suppress_errors = True
@@ -217,7 +290,9 @@ def main():
                     for i in range(5):
                         evaluations = eval_positions(model, fens)
                 else:
-                    sys.exit("Profiling of evaluation with search is currently not supported.")
+                    sys.exit(
+                        "Profiling of evaluation with search is currently not supported."
+                    )
                     # evaluations = eval_positions_with_search(model, fens, args.depth)
         else:
             if args.no_search:
