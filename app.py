@@ -38,8 +38,14 @@ def next_fen(starting, move):
     return board.fen()
 
 
-# Adapted from https://www.chessprogramming.org/Alpha-Beta
-def alpha_beta(fen, depth, alpha, beta, evaluate, maximizing_player, ply=0):
+# Negamax implementation from https://www.chessprogramming.org/Alpha-Beta
+# with some help from python-chess-engine-extensions
+# https://github.com/Mk-Chan/python-chess-engine-extensions/blob/master/search/alphabeta.py
+#
+# TODO
+# * Add quiescence search https://www.chessprogramming.org/Quiescence_Search
+#
+def alpha_beta(fen, depth, alpha, beta, evaluate, ply=0):
     if depth == 0 or ply >= MAX_PLY:
         return evaluate(fen), []
 
@@ -60,48 +66,32 @@ def alpha_beta(fen, depth, alpha, beta, evaluate, maximizing_player, ply=0):
         board.legal_moves, reverse=True, key=lambda move: sort_moves(board, move)
     )
 
-    if maximizing_player:
-        max_eval = float("-inf")
-        pv = []
-        for move in legal_moves:
-            new_fen = next_fen(fen, move)
+    best_eval = float("-inf")
+    pv = []
+    for move in legal_moves:
+        new_fen = next_fen(fen, move)
 
-            candidate_eval, candidate_pv = alpha_beta(
-                new_fen, depth - 1, alpha, beta, evaluate, False, ply + 1
-            )
+        candidate_eval, candidate_pv = alpha_beta(
+            new_fen,
+            depth - 1,
+            -beta,
+            -alpha,
+            evaluate,
+            ply + 1
+        )
+        candidate_eval = -candidate_eval
 
-            if candidate_eval >= beta:
-                return beta, []
+        if candidate_eval >= beta:
+            return beta, []
 
-            if candidate_eval > max_eval:
-                max_eval = candidate_eval
+        if candidate_eval > best_eval:
+            best_eval = candidate_eval
 
-                if max_eval > alpha:
-                    alpha = max_eval
-                    pv = [move] + candidate_pv
+            if best_eval > alpha:
+                alpha = best_eval
+                pv = [move] + candidate_pv
 
-        return alpha, pv
-    else:
-        min_eval = float("inf")
-        pv = []
-        for move in legal_moves:
-            new_fen = next_fen(fen, move)
-
-            candidate_eval, candidate_pv = alpha_beta(
-                new_fen, depth - 1, alpha, beta, evaluate, True, ply + 1
-            )
-
-            if candidate_eval <= alpha:
-                return alpha, []
-
-            if candidate_eval < min_eval:
-                min_eval = candidate_eval
-
-                if min_eval < beta:
-                    beta = min_eval
-                    pv = [move] + candidate_pv
-
-        return beta, pv
+    return alpha, pv
 
 
 def read_model(nnue_path):
