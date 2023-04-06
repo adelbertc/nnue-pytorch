@@ -5,8 +5,7 @@ https://github.com/PySimpleGUI/PySimpleGUI
 """
 
 import argparse
-import chess
-import chess.pgn
+from chess import Board, Move, WHITE
 import copy
 import os
 import PySimpleGUI as sg
@@ -181,35 +180,44 @@ def play_game(next_move):
         icon="kingb.ico",
     ).Layout(layout)
 
-    board = chess.Board()
-    move_count = 1
-    move_state = move_from = move_to = 0
+    board = Board()
+    moving_piece = False
+    move_from = move_to = 0
 
     while not board.is_game_over():
-        if board.turn == chess.WHITE:
-            move_state = 0
+        if board.turn == WHITE:
+            moving_piece = False
             while True:
                 button, value = window.Read()
                 if button in (None, "Exit"):
                     exit()
 
                 if type(button) is tuple:
-                    if move_state == 0:
+                    # user has not clicked a piece to move yet,
+                    # so wait for them to do so
+                    if not moving_piece:
                         move_from = button
                         row, col = move_from
-                        piece = psg_board[row][col]  # get the move-from piece
+
+                        # get the piece on the square they clicked
+                        piece = psg_board[row][col]
                         button_square = window.find_element(key=(row, col))
                         button_square.Update(button_color=("white", "red"))
-                        move_state = 1
-                    elif move_state == 1:
+                        moving_piece = True
+
+                    # user has clicked a piece, so next click is
+                    # the square to try to move the piece to
+                    else:
                         move_to = button
                         row, col = move_to
+
                         if move_to == move_from:  # cancelled move
                             color = "#B58863" if (row + col) % 2 else "#F0D9B5"
                             button_square.Update(button_color=("white", color))
-                            move_state = 0
+                            moving_piece = False
                             continue
 
+                        # convert the grid index to the UCI format
                         picked_move = "{}{}{}{}".format(
                             "abcdefgh"[move_from[1]],
                             8 - move_from[0],
@@ -217,13 +225,13 @@ def play_game(next_move):
                             8 - move_to[0],
                         )
 
-                        picked_move = chess.Move.from_uci(picked_move)
+                        picked_move = Move.from_uci(picked_move)
 
                         if board.is_legal(picked_move):
                             board.push(picked_move)
                         else:
                             print("Illegal move")
-                            move_state = 0
+                            moving_piece = False
                             color = (
                                 "#B58863"
                                 if (move_from[0] + move_from[1]) % 2
@@ -237,7 +245,6 @@ def play_game(next_move):
                         ] = BLANK  # place blank where piece was
                         psg_board[row][col] = piece  # place piece in the move-to square
                         redraw_board(window, psg_board)
-                        move_count += 1
 
                         window.find_element("_movelist_").Update(
                             picked_move.uci() + "\n", append=True
@@ -259,5 +266,4 @@ def play_game(next_move):
             redraw_board(window, psg_board)
 
             board.push(best_move)
-            move_count += 1
     sg.Popup("Game over!", "Thank you for playing")
