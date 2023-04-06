@@ -5,8 +5,10 @@ import ui
 
 import argparse
 import chess
+import chess.pgn
 from python_chess_engine_extensions.evaluation.mixins import BaseEvaluation
 from python_chess_engine_extensions.search.alphabeta import AlphaBetaMixin
+import sys
 import torch
 from octoml_profile import accelerate, remote_profile, RemoteInferenceSession
 
@@ -141,6 +143,17 @@ def filter_fens(fens):
     return list(filter(not_in_check, fens))
 
 
+def pgn_to_fens(game):
+    board = chess.Board()
+    fens = []
+
+    fens.append(board.fen())
+    for move in game.mainline_moves():
+        board.push(move)
+        fens.append(board.fen())
+    return fens
+
+
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--net", type=str, help="path to a .nnue net")
@@ -149,9 +162,16 @@ def main():
     )
     parser.add_argument("--fen", type=str, help="provide a single fen to evaluate")
     parser.add_argument("--fens", type=str, help="path to file of fens")
+    parser.add_argument("--pgn", type=str, help="path to pgn")
     parser.add_argument("--depth", type=int, default=3, help="depth of search")
+
     parser.add_argument(
         "--profile", action="store_true", help="run in PyTorch profiling mode"
+    )
+    parser.add_argument(
+        "--no-search",
+        action="store_true",
+        help="run Stockfish evaluation without search",
     )
     args = parser.parse_args()
 
@@ -166,7 +186,15 @@ def main():
         next_move = lambda fen: eval_position_with_search(model, fen, args.depth)[1][0]
         ui.play_game(next_move)
     else:
-        fens = [args.fen] if args.fen else open(args.fens).read().splitlines()
+        if args.pgn:
+            with open(args.pgn) as pgnfile:
+                game = chess.pgn.read_game(pgnfile)
+            fens = pgn_to_fens(game)
+        elif args.fen:
+            fens = [args.fen]
+        else:
+            fens = open(args.fen).read().splitlines()
+
         fens = filter_fens(fens)
 
         board = chess.Board()
@@ -185,15 +213,27 @@ def main():
             )
 
             with remote_profile(session):
-                evaluations = eval_positions_with_search(model, fens, args.depth)
+                if args.no_search:
+                    for i in range(5):
+                        evaluations = eval_positions(model, fens)
+                else:
+                    sys.exit("Profiling of evaluation with search is currently not supported.")
+                    # evaluations = eval_positions_with_search(model, fens, args.depth)
         else:
-            evaluations = eval_positions_with_search(model, fens, args.depth)
+            if args.no_search:
+                evaluations = eval_positions(model, fens)
+            else:
+                evaluations = eval_positions_with_search(model, fens, args.depth)
 
         for i in range(len(fens)):
             fen = fens[i]
-            score, moves = evaluations[i]
-            moves_string = " ".join(moves)
-            print('[eval: {}] {}, position = "{}"'.format(score, moves_string, fen))
+            if args.no_search:
+                score = evaluations[i]
+                print('[eval: {}], position = "{}"'.format(score, fen))
+            else:
+                score, moves = evaluations[i]
+                moves_string = " ".join(moves)
+                print('[eval: {}] {}, position = "{}"'.format(score, moves_string, fen))
 
 
 if __name__ == "__main__":
