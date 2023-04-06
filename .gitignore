@@ -4,3 +4,5 @@ build/
 logs/
 libtraining_data_loader.so
 set_env.sh
+.web
+pynecone.db

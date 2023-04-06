@@ -228,7 +228,6 @@ def pgn_to_fens(game):
         fens.append(board.fen())
     return fens
 
-
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--net", type=str, help="path to a .nnue net")
