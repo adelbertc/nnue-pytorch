@@ -12,7 +12,6 @@ chess             = "^1.9"
 cupy-cuda117      = "^10.6"
 octoml-profile    = "==0.1.5"
 pynecone          = { git = "https://github.com/pynecone-io/pynecone.git" }
-pysimplegui       = "^4.60"
 pytorch-lightning = "^2.0"
 torch             = "^2.0"
 torchaudio        = "^2.0"

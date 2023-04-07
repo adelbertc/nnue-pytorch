@@ -1,7 +1,6 @@
 import features
 import nnue_dataset
 import serialize
-import ui
 
 import argparse
 import chess
@@ -52,7 +51,7 @@ def alpha_beta(fen, depth, alpha, beta, evaluate, ply=0):
     board = chess.Board(fen)
 
     if board.is_checkmate():
-        mate_score = -MATE + ply if maximizing_player else MATE - ply
+        mate_score = -MATE + ply
         return mate_score, []
 
     if (
@@ -221,9 +220,6 @@ def pgn_to_fens(game):
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--net", type=str, help="path to a .nnue net")
-    parser.add_argument(
-        "--ui", action="store_true", help="run the UI to play against the computer"
-    )
     parser.add_argument("--fen", type=str, help="provide a single fen to evaluate")
     parser.add_argument("--fens", type=str, help="path to file of fens")
     parser.add_argument("--pgn", type=str, help="path to pgn")
@@ -246,60 +242,55 @@ def main():
     if args.profile:
         model = accelerate(model)
 
-    if args.ui:
-        next_move = lambda fen: eval_position_with_search(model, fen, args.depth)[1][0]
-        ui.play_game(next_move)
+    if args.pgn:
+        with open(args.pgn) as pgnfile:
+            game = chess.pgn.read_game(pgnfile)
+        fens = pgn_to_fens(game)
+    elif args.fen:
+        fens = [args.fen]
     else:
-        if args.pgn:
-            with open(args.pgn) as pgnfile:
-                game = chess.pgn.read_game(pgnfile)
-            fens = pgn_to_fens(game)
-        elif args.fen:
-            fens = [args.fen]
-        else:
-            fens = open(args.fen).read().splitlines()
+        fens = open(args.fen).read().splitlines()
 
-        fens = filter_fens(fens)
+    fens = filter_fens(fens)
 
-        board = chess.Board()
+    board = chess.Board()
 
-        if args.profile:
-            torch._dynamo.config.suppress_errors = True
+    if args.profile:
+        torch._dynamo.config.suppress_errors = True
 
-            session = RemoteInferenceSession(
-                [
-                    "g4dn.xlarge/onnxrt-cuda",
-                    "g4dn.xlarge/onnxrt-tensorrt",
-                    "g4dn.xlarge/torch-eager-cuda",
-                    "g4dn.xlarge/torch-inductor-cuda",
-                ]
-            )
+        session = RemoteInferenceSession(
+            [
+                "g4dn.xlarge/onnxrt-cuda",
+                "g4dn.xlarge/onnxrt-tensorrt",
+                "g4dn.xlarge/torch-eager-cuda",
+                "g4dn.xlarge/torch-inductor-cuda",
+            ]
+        )
 
-            with remote_profile(session):
-                if args.no_search:
-                    for i in range(5):
-                        evaluations = eval_positions(model, fens)
-                else:
-                    sys.exit(
-                        "Profiling of evaluation with search is currently not supported."
-                    )
-                    # evaluations = eval_positions_with_search(model, fens, args.depth)
-        else:
+        with remote_profile(session):
             if args.no_search:
-                evaluations = eval_positions(model, fens)
+                for i in range(5):
+                    evaluations = eval_positions(model, fens)
             else:
-                evaluations = eval_positions_with_search(model, fens, args.depth)
+                sys.exit(
+                    "Profiling of evaluation with search is currently not supported."
+                )
+                # evaluations = eval_positions_with_search(model, fens, args.depth)
+    else:
+        if args.no_search:
+            evaluations = eval_positions(model, fens)
+        else:
+            evaluations = eval_positions_with_search(model, fens, args.depth)
 
-        for i in range(len(fens)):
-            fen = fens[i]
-            if args.no_search:
-                score = evaluations[i]
-                print('[eval: {}], position = "{}"'.format(score, fen))
-            else:
-                score, moves = evaluations[i]
-                moves_string = " ".join(moves)
-                print('[eval: {}] {}, position = "{}"'.format(score, moves_string, fen))
-
+    for i in range(len(fens)):
+        fen = fens[i]
+        if args.no_search:
+            score = evaluations[i]
+            print('[eval: {}], position = "{}"'.format(score, fen))
+        else:
+            score, moves = evaluations[i]
+            moves_string = " ".join(moves)
+            print('[eval: {}] {}, position = "{}"'.format(score, moves_string, fen))
 
 if __name__ == "__main__":
     main()
