@@ -1,10 +1,13 @@
 import features
 import nnue_dataset
+import remote
 import serialize
 
 import argparse
 import chess
 import chess.pgn
+import json
+import os
 import sys
 import torch
 from octoml_profile import accelerate, remote_profile, RemoteInferenceSession
@@ -111,28 +114,34 @@ def get_algebraic(starting_fen, moves):
     return results
 
 
-def eval_positions_with_search(model, fens, depth):
+def eval_positions_with_search(model, fens, depth, inference_server=None):
     """
     Evaluate a batch of positions with the provided search depth.
     """
     results = []
     for fen in fens:
-        score, pv = eval_position_with_search(model, fen, depth)
+        score, pv = eval_position_with_search(model, fen, depth, inference_server)
         pv = get_algebraic(fen, pv)
         results.append((score, pv))
     return results
 
 
-def eval_position_with_search(model, fen, depth):
+def eval_position_with_search(model, fen, depth, inference_server=None):
     """
     Evaluate a single position with the provided search depth.
     """
+
+    if inference_server:
+        evaluate = lambda fen: inference_server.evaluate(fen)
+    else:
+        evaluate = lambda fen: eval_positions(model, [fen])[0]
+
     return alpha_beta(
         fen,
         depth,
         float("-inf"),
         float("inf"),
-        lambda fen: eval_positions(model, [fen])[0],
+        evaluate,
         True,
     )
 
@@ -220,6 +229,9 @@ def main():
     parser.add_argument("--fens", type=str, help="path to file of fens")
     parser.add_argument("--pgn", type=str, help="path to pgn")
     parser.add_argument("--depth", type=int, default=3, help="depth of search")
+    parser.add_argument(
+        "--remote", type=str, default=None, help="path to remote config file"
+    )
 
     parser.add_argument(
         "--profile", action="store_true", help="run in PyTorch profiling mode"
@@ -276,7 +288,19 @@ def main():
         if args.no_search:
             evaluations = eval_positions(model, fens)
         else:
-            evaluations = eval_positions_with_search(model, fens, args.depth)
+            if args.remote:
+                with open(args.remote, "r") as cf:
+                    config = json.load(cf)
+                inference_server = remote.RemoteInference(
+                    config["endpoint"], config["token"]
+                )
+                print("Using remote inference server.")
+            else:
+                inference_server = None
+                print("Using local inference.")
+            evaluations = eval_positions_with_search(
+                model, fens, args.depth, inference_server
+            )
 
     for i in range(len(fens)):
         fen = fens[i]
