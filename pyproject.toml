@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.8"
 
 chess             = "^1.9"
+cog               = "^0.6"
 cupy-cuda117      = "^10.6"
 octoml-profile    = "==0.1.5"
 pynecone          = { git = "https://github.com/pynecone-io/pynecone.git" }

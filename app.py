@@ -71,12 +71,7 @@ def alpha_beta(fen, depth, alpha, beta, evaluate, ply=0):
         new_fen = next_fen(fen, move)
 
         candidate_eval, candidate_pv = alpha_beta(
-            new_fen,
-            depth - 1,
-            -beta,
-            -alpha,
-            evaluate,
-            ply + 1
+            new_fen, depth - 1, -beta, -alpha, evaluate, ply + 1
         )
         candidate_eval = -candidate_eval
 
@@ -217,6 +212,7 @@ def pgn_to_fens(game):
         fens.append(board.fen())
     return fens
 
+
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--net", type=str, help="path to a .nnue net")
@@ -291,6 +287,7 @@ def main():
             score, moves = evaluations[i]
             moves_string = " ".join(moves)
             print('[eval: {}] {}, position = "{}"'.format(score, moves_string, fen))
+
 
 if __name__ == "__main__":
     main()

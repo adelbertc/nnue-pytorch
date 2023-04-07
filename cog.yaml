@@ -1,0 +1,13 @@
+build:
+  gpu: true
+  python_version: "3.8"
+  python_packages:
+  - "chess"
+  - "cupy-cuda117"
+  - "octoml-profile"
+  - "pynecone"
+  - "pytorch-lightning"
+  - "torch"
+  - "torchaudio"
+  - "torchvision"
+predict: "predict.py:Predictor"
