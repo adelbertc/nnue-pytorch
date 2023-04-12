@@ -257,7 +257,7 @@ def main():
     elif args.fen:
         fens = [args.fen]
     else:
-        fens = open(args.fen).read().splitlines()
+        fens = open(args.fens).read().splitlines()
 
     fens = filter_fens(fens)
 
