@@ -11,17 +11,17 @@ RUN apt update
 RUN DEBIAN_FRONTEND=noninteractive TZ=America/Los_Angeles apt install -y tzdata
 
 RUN apt install -y --no-install-recommends \
-        build-essential \
-        cmake \
-        curl \
-        gcc \
+	build-essential \
+	cmake \
+	curl \
+	gcc \
 	git \
-        python3 \
-        python3-dev \
+	python3 \
+	python3-dev \
 	python3-distutils \
 	python3-tk \
 	unzip \
-        vim
+	vim
 
 # Install Node.js 18 from NodeSource
 # https://github.com/nodesource/distributions#deb
