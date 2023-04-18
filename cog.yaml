@@ -1,4 +1,5 @@
 build:
+  cuda: "11.7"
   gpu: true
   python_version: "3.8"
   python_packages:
@@ -10,4 +11,6 @@ build:
   - "torch"
   - "torchaudio"
   - "torchvision"
+  system_packages:
+  - "cuda"
 predict: "predict.py:Predictor"
