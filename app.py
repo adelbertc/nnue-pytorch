@@ -7,10 +7,6 @@ import argparse
 import chess
 import chess.pgn
 import json
-import os
-import sys
-import torch
-from octoml_profile import accelerate, remote_profile, RemoteInferenceSession
 
 FEATURE_SET = features.get_feature_set_from_name("HalfKAv2_hm")
 MAX_PLY = 128
@@ -234,9 +230,6 @@ def main():
     )
 
     parser.add_argument(
-        "--profile", action="store_true", help="run in PyTorch profiling mode"
-    )
-    parser.add_argument(
         "--no-search",
         action="store_true",
         help="run Stockfish evaluation without search",
@@ -246,9 +239,6 @@ def main():
     model = read_model(args.net)
     model.eval()
     model.cuda()
-
-    if args.profile:
-        model = accelerate(model)
 
     if args.pgn:
         with open(args.pgn) as pgnfile:
@@ -261,46 +251,22 @@ def main():
 
     fens = filter_fens(fens)
 
-    board = chess.Board()
-
-    if args.profile:
-        torch._dynamo.config.suppress_errors = True
-
-        session = RemoteInferenceSession(
-            [
-                "g4dn.xlarge/onnxrt-cuda",
-                "g4dn.xlarge/onnxrt-tensorrt",
-                "g4dn.xlarge/torch-eager-cuda",
-                "g4dn.xlarge/torch-inductor-cuda",
-            ]
-        )
-
-        with remote_profile(session):
-            if args.no_search:
-                for i in range(5):
-                    evaluations = eval_positions(model, fens)
-            else:
-                sys.exit(
-                    "Profiling of evaluation with search is currently not supported."
-                )
-                # evaluations = eval_positions_with_search(model, fens, args.depth)
+    if args.no_search:
+        evaluations = eval_positions(model, fens)
     else:
-        if args.no_search:
-            evaluations = eval_positions(model, fens)
-        else:
-            if args.remote:
-                with open(args.remote, "r") as cf:
-                    config = json.load(cf)
-                inference_server = remote.RemoteInference(
-                    config["endpoint"], config["token"]
-                )
-                print("Using remote inference server.")
-            else:
-                inference_server = None
-                print("Using local inference.")
-            evaluations = eval_positions_with_search(
-                model, fens, args.depth, inference_server
+        if args.remote:
+            with open(args.remote, "r") as cf:
+                config = json.load(cf)
+            inference_server = remote.RemoteInference(
+                config["endpoint"], config["token"]
             )
+            print("Using remote inference server.")
+        else:
+            inference_server = None
+            print("Using local inference.")
+        evaluations = eval_positions_with_search(
+            model, fens, args.depth, inference_server
+        )
 
     for i in range(len(fens)):
         fen = fens[i]

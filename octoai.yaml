@@ -1,0 +1,6 @@
+endpoint_config:
+  name: octo-vida
+  hardware: gpu.t4.medium
+  registry:
+    host: docker.io
+    path: adelbertc/octo-vida

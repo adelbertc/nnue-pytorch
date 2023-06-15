@@ -1,67 +1,49 @@
-FROM nvidia/cuda:11.4.3-devel-ubuntu20.04
+FROM nvidia/cuda:11.7.0-cudnn8-devel-ubuntu22.04
+ENV DEBIAN_FRONTEND="noninteractive"
+ENV PYTHONUNBUFFERED=1
+RUN apt update && apt install -y \
+  build-essential \
+  cmake \
+  curl \
+  ffmpeg \
+  gcc \
+  libsm6 \
+  libxext6 \
+  libgl1 \
+  python3-pip \
+  vim \
+  && rm -rf /var/lib/apt/lists/* \
+  && pip install --no-cache-dir --upgrade pip
 
-SHELL ["/bin/bash", "-c"]
+# Ensure CUDART libraries can be found are on the library path.
+ARG CUDART_PATH=/usr/local/cuda/lib64
+ENV LD_LIBRARY_PATH=${CUDART_PATH}:${LD_LIBRARY_PATH}
+# RUN ln -s ${CUDART_PATH}/libcudart.so.12 ${CUDART_PATH}/libcudart.so
+# RUN ln -s ${CUDART_PATH}/libnvrtc.so.12 ${CUDART_PATH}/libnvrtc.so
+RUN ln -s /usr/bin/python3 /usr/bin/python
 
-RUN apt update
+WORKDIR /service
 
-########################
-# Install dependencies #
-########################
+# Install server wheel.
+COPY octoai_sdk-0.1.0-py3-none-any.whl  .
+RUN python3 -m pip install octoai_sdk-0.1.0-py3-none-any.whl
 
-RUN DEBIAN_FRONTEND=noninteractive TZ=America/Los_Angeles apt install -y tzdata
-
-RUN apt install -y --no-install-recommends \
-	build-essential \
-	cmake \
-	curl \
-	gcc \
-	git \
-	python3 \
-	python3-dev \
-	python3-distutils \
-	python3-tk \
-	unzip \
-	vim
-
-# Install Node.js 18 from NodeSource
-# https://github.com/nodesource/distributions#deb
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-	apt install -y --no-install-recommends nodejs
-
-RUN useradd -ms /bin/bash -G sudo vida
-
-# Install Bun JS runtime
-# https://bun.sh/
-RUN curl -fsSL https://bun.sh/install | bash
-# RUN . ~/.bashrc
+# TODO(akm): Remove this after CLI depends on inference SDK.
+RUN python3 -m pip install httpx
 
 # Install Poetry
 # https://python-poetry.org/
 RUN curl -sSL https://install.python-poetry.org | python3 -
-# ENV PATH="~/.local/bin:$PATH"
 
-########################
-# Clone vida
-########################
+# Copy remaining template contents.
+COPY app .
 
-WORKDIR /runtime
-RUN git clone --branch profiler https://github.com/adelbertc/nnue-pytorch.git vida
-
-WORKDIR /runtime/vida
-
-########################
-# Build vida
-########################
-
-RUN echo "export PATH=~/.bun/bin:~/.local/bin:$PATH" >> ~/.bashrc
-RUN cat ~/.bashrc
+# Workaround for .dockerignore not being respected
+RUN rm -r build/
+RUN rm -r .venv/
 
 RUN sh compile_data_loader.bat
-RUN ~/.local/bin/poetry install
-RUN PATH=~/.bun/bin:$PATH ~/.local/bin/poetry run pc init
-
-EXPOSE 3000
-EXPOSE 8000
-
-CMD ["/root/.local/bin/poetry", "run", "pc", "run"]
-
+RUN /root/.local/bin/poetry lock
+RUN /root/.local/bin/poetry install
+CMD ["/root/.local/bin/poetry", "run", "python3", "-m", "octoai.server", "--service-module", "service", "run"]
+# /root/.local/bin/poetry run python3 -m octoai.server --service-module service run
